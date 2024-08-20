@@ -1,63 +1,22 @@
 from flask import Flask, request, jsonify
 import tensorflow as tf
 import numpy as np
-from keras import layers
-from keras import Model
-from keras.saving import register_keras_serializable
+import os
+from keras.models import load_model
+from BookRecommendationModel import BookRecommendationModel  # 사용자 정의 모델 클래스가 있는 모듈
 
-# Flask 애플리케이션 생성
 app = Flask(__name__)
 
-@register_keras_serializable()
-class BookRecommendationModel(tf.keras.Model):
-    def __init__(self, num_users, num_books, num_categories, trainable=True):
-        super(BookRecommendationModel, self).__init__(trainable=trainable)
-        self.user_embedding = tf.keras.layers.Embedding(input_dim=num_users + 1, output_dim=128)
-        self.book_embedding = tf.keras.layers.Embedding(input_dim=num_books + 1, output_dim=128)
-        self.category_embedding = tf.keras.layers.Embedding(input_dim=num_categories + 1, output_dim=64)
-        self.dense_layer = tf.keras.layers.Dense(96, activation='relu')
-        self.output_layer = tf.keras.layers.Dense(num_categories, activation='sigmoid')
+# 현재 디렉토리에 있는 모델 파일 경로
+model_path = os.path.join(os.getcwd(), 'personalRecommend_ver4.keras')
 
-    @tf.function
-    def call(self, inputs):
-        user_ids = inputs[0]
-        category_ids = inputs[1]
-
-        user_embedded = self.user_embedding(user_ids)
-        category_processed = self.category_embedding(category_ids)
-        category_processed = tf.reduce_mean(category_processed, axis=1)
-
-        combined = tf.concat([user_embedded, category_processed], axis=-1)
-        x = self.dense_layer(combined)
-
-        return self.output_layer(x)
-
-    def compute_loss(self, predictions, labels):
-        return tf.keras.losses.binary_crossentropy(labels, predictions)
-
-    def build(self, input_shape):
-        self.user_embedding.build((None,))
-        self.book_embedding.build((None,))
-        self.category_embedding.build((None, input_shape[1][-1]))
-        self.dense_layer.build((None, self.user_embedding.output_dim + self.category_embedding.output_dim))
-        self.output_layer.build((None, self.dense_layer.units))
-
-# 사용자 수, 책 수, 카테고리 수 설정
-num_users = (1000)  # 예시값
-num_books = (30)    # 예시값
-num_categories = (10)  # 예시값
-
-# 모델 인스턴스 생성
-model = BookRecommendationModel(num_users, num_books, num_categories)
-
-# 모델 빌드 및 요약
-model.build(input_shape=[(None,), (None, 10)])
-model.summary()
+# 모델 로드
+model = tf.keras.models.load_model(model_path)
 
 # 추천 함수
 def recommend_books_with_model(user_id, model, userBook, num_recommendations=4):
     user_id_encoded = user_id_mapping[user_id]
-    category_vector = [0] * 10
+    category_vector = [0] * num_categories
 
     user_categories = final_result[final_result['user_id'] == user_id]['category_id'].values
     if len(user_categories) > 0:
@@ -81,7 +40,7 @@ def recommend_books_with_model(user_id, model, userBook, num_recommendations=4):
     if len(recommended_books) >= num_recommendations:
         recommended_books = np.random.choice(recommended_books, size=num_recommendations, replace=False).tolist()
     elif len(recommended_books) == 0:
-        return "추천할 책이 없습니다."
+        return {"message": "추천할 책이 없습니다."}  # JSON 형식으로 변경
 
     recommended_books_info = book[book['book_id'].isin(recommended_books)]
     recommended_books_info = recommended_books_info.head(num_recommendations)
@@ -90,15 +49,20 @@ def recommend_books_with_model(user_id, model, userBook, num_recommendations=4):
 
 @app.route('/recommend', methods=['POST'])
 def recommend():
-    user_id = request.json['user_id']
+    user_id = request.json.get('user_id')
+
+    # 유효성 검사
+    if user_id not in user_id_mapping:
+        return jsonify({"error": "Invalid user ID"}), 400
 
     # 추천 함수 호출
     recommended_books = recommend_books_with_model(user_id, model, userBook, num_recommendations=4)
+
+    # 추천 결과가 메시지인 경우
+    if isinstance(recommended_books, dict) and "message" in recommended_books:
+        return jsonify(recommended_books), 404
 
     return jsonify(recommended_books)
 
 if __name__ == '__main__':
     app.run(port=5000)
-
-
-
