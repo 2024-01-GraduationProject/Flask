@@ -1,7 +1,6 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # 가상환경 관련 파일
-/venv
-
+/bookMind
 
 
