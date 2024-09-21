@@ -115,7 +115,6 @@ def recommend():
     ## -- 추천 결과 생성 -- ##
     recommend_books = recommend_books_with_model(user_id, model, userBook, final_result)
     
-    print(recommend_books)
     return jsonify(recommend_books)
 
 if __name__ == '__main__':
