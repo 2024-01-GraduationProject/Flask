@@ -51,8 +51,6 @@ def recommend():
     user_ids = tf.data.Dataset.from_tensor_slices(final_result['user_id'].values)
     category_ids = tf.data.Dataset.from_tensor_slices(list(final_result['category_id']))
     
-    # # 데이터셋 구성
-    # user_book_interactions = tf.data.Dataset.zip((user_ids, category_ids)).batch(64)
     
     # 모델 인스턴스 생성
     num_users = len(user_id_mapping)  # 사용자 수
