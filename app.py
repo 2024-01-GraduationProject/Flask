@@ -6,7 +6,7 @@ import tensorflow as tf
 from tensorflow.python.keras.models import load_model
 from model import BookRecommendationModel # 모델 정의가 있는 파일 import
 
-application = app = Flask(__name__)
+app = Flask(__name__)
 CORS(app) # 모든 경로에 대해 CORS 허용
 
 @app.route("/recommend", methods=['POST']) # 추천을 위한 엔드포인트 정의
